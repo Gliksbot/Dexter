@@ -1,7 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
+from autonomy import AutonomyManager
+from memory import MemoryManager
 
+# Instantiate memory and autonomy managers
+memory_manager = MemoryManager()
+autonomy_manager = AutonomyManager(memory=memory_manager)
 
 app = FastAPI(title="Dexter Backend")
 
@@ -19,10 +24,10 @@ async def read_root():
 @app.post("/query")
 async def handle_query(request: QueryRequest):
     """
-    Handle user queries by forwarding the request to the primary LLM.
-    In a full implementation this would use the autonomy manager to ask
-    clarifying questions and orchestrate collaboration between multiple
-    language models. For now it simply echoes the query back.
+        Handle user queries by forwarding the request to the primary language model,
+    asking clarifying questions via the autonomy manager, and returning the final response.
     """
-    # TODO: integrate autonomy manager and collaboration engine
-    return {"response": f"Received: {request.query}", "clarifications": []}
+    clarifications = await autonomy_manager.ask_clarifications(request.query)
+    response = await autonomy_manager.process_request(request.query)
+    return {"response": response, "clarifications": clarifications}
+
