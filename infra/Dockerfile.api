@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# Install Python deps with caching
+COPY backend/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Data path for SQLite persistence
+RUN mkdir -p /data
+ENV DEXTER_DB_PATH=/data/dexter_memory.db
+
+EXPOSE 8000
