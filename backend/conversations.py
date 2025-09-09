@@ -19,7 +19,7 @@ class ConversationManager:
     def __init__(self, db_path: str = "conversations.sqlite3") -> None:
         # Connect to the SQLite database. If the file does not exist, it will be created.
         self.db_path = db_path
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._create_tables()
 
     def _create_tables(self) -> None:
