@@ -3,10 +3,14 @@ from pydantic import BaseModel
 from .autonomy import AutonomyManager
 from .memory import MemoryManager
 from .conversations import ConversationManager
+from .collaboration import CollaborationHub
 
-# Instantiate memory and autonomy managers
+# Instantiate core managers
 memory_manager = MemoryManager()
-autonomy_manager = AutonomyManager(memory=memory_manager)
+collaboration_hub = CollaborationHub()
+autonomy_manager = AutonomyManager(
+    memory=memory_manager, collaboration=collaboration_hub
+)
 
 conversation_manager = ConversationManager()
 app = FastAPI(title="Dexter Backend")

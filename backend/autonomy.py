@@ -12,19 +12,44 @@ framework and placeholder logic to illustrate the intended API.
 from __future__ import annotations
 
 from typing import List
+import re
 
 # Import the unified MemoryManager from our memory module
 from .memory import MemoryManager
+from .collaboration import CollaborationHub
 
 
 class AutonomyManager:
     """Manage user queries, clarifications, and memory interactions."""
 
-    def __init__(self, model_name: str = "default-model", memory: MemoryManager | None = None) -> None:
+    def __init__(
+        self,
+        model_name: str = "default-model",
+        memory: MemoryManager | None = None,
+        collaboration: CollaborationHub | None = None,
+    ) -> None:
+        """Create a new autonomy manager.
+
+        Parameters
+        ----------
+        model_name:
+            Identifier for the primary model used to generate clarifying
+            questions.  This is purely informational for now.
+        memory:
+            Optional memory manager instance. If not provided a new one is
+            created which stores short and long term context.
+        collaboration:
+            Optional :class:`CollaborationHub` used to broadcast user input,
+            clarifying questions and Dexter's responses so that other
+            collaborators can work in parallel.
+        """
+
         # The name of the primary model used to ask clarifying questions
         self.model_name = model_name
         # Initialize a memory manager if one is not provided
         self.memory: MemoryManager = memory or MemoryManager()
+        # Event hub for advanced collaboration features
+        self.collaboration: CollaborationHub | None = collaboration
 
     async def ask_clarifications(self, query: str) -> List[str]:
         """
@@ -38,11 +63,16 @@ class AutonomyManager:
         """
         # Store the user's initial query in memory
         self.memory.add_message("user", query)
-        # Placeholder clarifying questions
-        return [
-            "Could you please provide more details about your request?",
-            "What specific format or length do you expect?",
-        ]
+        if self.collaboration:
+            await self.collaboration.broadcast("user_query", {"query": query})
+
+        questions = generate_clarifying_questions(query, minimum=3)
+        for q in questions:
+            if self.collaboration:
+                await self.collaboration.broadcast(
+                    "clarifying_question", {"question": q}
+                )
+        return questions
 
     async def process_request(self, query: str) -> str:
         """
@@ -63,4 +93,56 @@ class AutonomyManager:
         response = f"Received your request: {query}"
         # Store the response from Dexter
         self.memory.add_message("assistant", response)
+        if self.collaboration:
+            await self.collaboration.broadcast(
+                "assistant_response", {"response": response}
+            )
         return response
+
+
+STOPWORDS = {
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "about",
+    "for",
+    "with",
+    "on",
+    "in",
+    "of",
+    "to",
+    "your",
+}
+
+
+def _extract_keywords(query: str, max_keywords: int = 1) -> List[str]:
+    """Extract simple keywords from a query string."""
+    words = re.findall(r"\w+", query.lower())
+    keywords = [w for w in words if w not in STOPWORDS]
+    return keywords[:max_keywords]
+
+
+def generate_clarifying_questions(query: str, minimum: int = 3) -> List[str]:
+    """Generate at least ``minimum`` clarifying questions for a query.
+
+    The questions are phrased to draw out the user's intent, constraints,
+    and success criteria. The implementation is deterministic so that tests
+    can reliably assert the output, while still customising each question to
+    the user's request.
+    """
+
+    subject = _extract_keywords(query, 1)
+    topic = subject[0] if subject else "your request"
+
+    base_questions = [
+        f"What is your primary goal regarding {topic}?",
+        f"Are there any specific constraints or preferences for {topic}?",
+        "What would a successful outcome look like?",
+        "Is there any existing context or code we should consider?",
+    ]
+
+    num_needed = max(minimum, 3)
+    return base_questions[:num_needed]
