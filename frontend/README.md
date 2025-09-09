@@ -1,12 +1,21 @@
 # Dexter Frontend
 
-This directory will contain the React-based frontend for Dexter. The goal is to provide a streamlined and customizable interface where each language model slot can be resized, moved, minimized, or maximized.
+This React application provides the web interface for Dexter. It is built with [Vite](https://vitejs.dev/).
 
-Key planned features:
+## Getting Started
 
-- **Multiple LLM panes**: Each slot (Dexter, Analyst, Engineer, etc.) will have its own chat panel. Panels can be rearranged and resized via a grid layout, making it easy to view conversations side by side.
-- **Clarifying dialogue**: Dexter will ask clarifying questions directly through conversation, rather than using hard‑coded patterns. The UI will display these questions and the user’s answers in real time to all collaborating models.
-- **Persistent state**: Input drafts and chat history will persist across refreshes to prevent losing work while typing.
-- **Speech support**: Optional text‑to‑speech and speech‑to‑text capabilities for hands‑free interaction.
+```bash
+cd frontend
+npm install --no-package-lock
+npm run dev
+```
 
-This is a placeholder file outlining the intended direction for the Dexter frontend. Implementation details will be added as development progresses.
+The UI expects a backend running at `http://localhost:8000` by default. To point to a different backend, set the `VITE_API_BASE_URL` environment variable.
+
+## Production Build
+
+```bash
+npm run build
+```
+
+The compiled assets will be output to the `dist/` directory.

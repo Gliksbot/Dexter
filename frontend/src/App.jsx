@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { motion, Reorder } from "framer-motion";
 import { Home, Database, Settings, Zap, Brain, FileText, Download, Send, Power, Volume2, VolumeX, SlidersHorizontal, Plus, Trash } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
 // --- Default slots (blank labels) ---
 const defaultSlots = [
   {
@@ -9,7 +11,7 @@ const defaultSlots = [
     label: "",
     enabled: true,
     local: true,
-    endpoint: "http://localhost:8000/llm/slot1",
+    endpoint: `${API_BASE_URL}/llm/slot1`,
     model: "",
     apiKey: "",
     temperature: 0.5,
@@ -19,7 +21,7 @@ const defaultSlots = [
   },
 ];
 
-export default function DexterSidebarUI() {
+export default function App() {
   const [active, setActive] = useState("conversations");
   const [autonomous, setAutonomous] = useState(false);
   const [slots, setSlots] = useState(defaultSlots);
@@ -41,28 +43,28 @@ export default function DexterSidebarUI() {
 
   // --- API INTEGRATIONS ---
   useEffect(() => {
-    fetch("/api/skills")
+    fetch(`${API_BASE_URL}/api/skills`)
       .then((res) => res.json())
       .then((data) => setSkills(data || []))
       .catch(() => setSkills([]));
   }, []);
 
   useEffect(() => {
-    fetch("/api/downloads")
+    fetch(`${API_BASE_URL}/api/downloads`)
       .then((res) => res.json())
       .then((data) => setDownloads(data || []))
       .catch(() => setDownloads([]));
   }, []);
 
   useEffect(() => {
-    const logSource = new EventSource("/api/events?slot=logs");
+    const logSource = new EventSource(`${API_BASE_URL}/api/events?slot=logs`);
     logSource.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
         setLogs((prev) => [...prev.slice(-200), data]);
       } catch {}
     };
-    const patternSource = new EventSource("/api/events?slot=patterns");
+    const patternSource = new EventSource(`${API_BASE_URL}/api/events?slot=patterns`);
     patternSource.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
@@ -89,7 +91,7 @@ export default function DexterSidebarUI() {
         label: "",
         enabled: true,
         local: true,
-        endpoint: `http://localhost:8000/llm/${newId}`,
+        endpoint: `${API_BASE_URL}/llm/${newId}`,
         model: "",
         apiKey: "",
         temperature: 0.5,
