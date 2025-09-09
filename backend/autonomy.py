@@ -2,11 +2,11 @@
 Autonomy manager for Dexter.
 
 This module defines the classes responsible for coordinating queries from
-users, asking clarifying questions via a primary language model, and
-managing conversations across multiple LLM collaborators. It integrates
-Dexter's memory system to retain both recent context and long-term
-conversation history. The initial implementation here provides a simple
-framework and placeholder logic to illustrate the intended API.
+users, asking clarifying questions through Dexter's built-in heuristics,
+and managing conversations across multiple LLM collaborators. It
+integrates Dexter's memory system to retain both recent context and
+long-term conversation history. The initial implementation here provides
+a simple framework and placeholder logic to illustrate the intended API.
 """
 
 from __future__ import annotations
@@ -52,18 +52,18 @@ class AutonomyManager:
         self.collaboration: CollaborationHub | None = collaboration
         # Function used to produce clarifying questions
         self.question_generator = (
-            question_generator or generate_clarifying_questions_llm
+            question_generator or generate_clarifying_questions
         )
 
     async def ask_clarifications(self, query: str) -> List[str]:
         """
         Ask clarifying questions to the user about their query.
 
-        This implementation stores the original query in short- and long-term
-        memory, then uses an LLM-driven ``question_generator`` to produce
-        clarifying questions. By default this calls Dexter's primary
-        language model so that the questions are created dynamically
-        rather than from a hard-coded list.
+        This implementation stores the original query in short- and
+        long-term memory, then uses a lightweight ``question_generator``
+        to produce clarifying questions. By default a simple heuristic is
+        used so that Dexter can operate without contacting an external
+        language model.
         """
         # Store the user's initial query in memory
         self.memory.add_message("user", query)
@@ -103,50 +103,40 @@ class AutonomyManager:
             )
         return response
 
+    async def record_clarification_answers(self, answers: List[str]) -> None:
+        """Record user answers to clarifying questions.
 
-def generate_clarifying_questions_llm(query: str, minimum: int = 3) -> List[str]:
-    """Generate clarifying questions for ``query`` using an LLM.
+        Each answer is stored in memory and broadcast so that background
+        collaborators receive updates in real time. After all answers are
+        processed a ``clarifications_complete`` event is emitted to signal
+        that collaborators may begin drafting final proposals.
+        """
+        for ans in answers:
+            self.memory.add_message("user", ans)
+            if self.collaboration:
+                await self.collaboration.broadcast(
+                    "clarification_answer", {"answer": ans}
+                )
+        if self.collaboration:
+            await self.collaboration.broadcast(
+                "clarifications_complete", {"count": len(answers)}
+            )
 
-    This function contacts the configured language model (via the OpenAI
-    API) and instructs it to produce at least ``minimum`` clarifying
-    questions. The questions are returned as a list of strings with any
-    empty lines removed. If the model returns fewer than the requested
-    number, the list is padded with generic prompts to satisfy the minimum.
+
+def generate_clarifying_questions(query: str, minimum: int = 3) -> List[str]:
+    """Generate clarifying questions for ``query`` using a simple template.
+
+    Dexter relies on a deterministic set of prompts that incorporate the
+    user's query. Exactly ``minimum`` questions are returned so that the
+    caller can anticipate the number of required responses.
     """
 
-    import os
-
-    try:
-        import openai
-    except ImportError as exc:  # pragma: no cover - import guarded for tests
-        raise RuntimeError("openai package is required for question generation") from exc
-
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    prompt = (
-        "Ask at least {n} concise clarifying questions about the following user "
-        "request. Respond with each question on a separate line.\nRequest: {q}".format(
-            n=minimum, q=query
-        )
-    )
-
-    resp = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {
-                "role": "system",
-                "content": "You are Dexter, an AI assistant that clarifies user intent.",
-            },
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
-    )
-
-    text = resp["choices"][0]["message"]["content"]
-    questions = [
-        line.strip("- ")
-        for line in text.splitlines()
-        if line.strip()
+    templates = [
+        "What is the main goal of '{q}'?",
+        "Are there any constraints or preferences I should consider?",
+        "Is there additional context about '{q}' that would help?",
     ]
+    questions = [t.format(q=query) for t in templates[:minimum]]
 
     if len(questions) < minimum:
         questions.extend(["Could you provide more detail?"] * (minimum - len(questions)))
