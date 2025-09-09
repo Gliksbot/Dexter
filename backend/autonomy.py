@@ -11,8 +11,7 @@ framework and placeholder logic to illustrate the intended API.
 
 from __future__ import annotations
 
-from typing import List
-import re
+from typing import Callable, List
 
 # Import the unified MemoryManager from our memory module
 from .memory import MemoryManager
@@ -27,6 +26,7 @@ class AutonomyManager:
         model_name: str = "default-model",
         memory: MemoryManager | None = None,
         collaboration: CollaborationHub | None = None,
+        question_generator: Callable[[str, int], List[str]] | None = None,
     ) -> None:
         """Create a new autonomy manager.
 
@@ -50,23 +50,27 @@ class AutonomyManager:
         self.memory: MemoryManager = memory or MemoryManager()
         # Event hub for advanced collaboration features
         self.collaboration: CollaborationHub | None = collaboration
+        # Function used to produce clarifying questions
+        self.question_generator = (
+            question_generator or generate_clarifying_questions_llm
+        )
 
     async def ask_clarifications(self, query: str) -> List[str]:
         """
         Ask clarifying questions to the user about their query.
 
         This implementation stores the original query in short- and long-term
-        memory, then returns a fixed set of example clarifying questions.
-        In a full implementation this would call the primary language
-        model with a prompt instructing it to ask clarifying questions
-        until the request is fully understood.
+        memory, then uses an LLM-driven ``question_generator`` to produce
+        clarifying questions. By default this calls Dexter's primary
+        language model so that the questions are created dynamically
+        rather than from a hard-coded list.
         """
         # Store the user's initial query in memory
         self.memory.add_message("user", query)
         if self.collaboration:
             await self.collaboration.broadcast("user_query", {"query": query})
 
-        questions = generate_clarifying_questions(query, minimum=3)
+        questions = self.question_generator(query, minimum=3)
         for q in questions:
             if self.collaboration:
                 await self.collaboration.broadcast(
@@ -100,49 +104,53 @@ class AutonomyManager:
         return response
 
 
-STOPWORDS = {
-    "the",
-    "a",
-    "an",
-    "and",
-    "or",
-    "but",
-    "about",
-    "for",
-    "with",
-    "on",
-    "in",
-    "of",
-    "to",
-    "your",
-}
+def generate_clarifying_questions_llm(query: str, minimum: int = 3) -> List[str]:
+    """Generate clarifying questions for ``query`` using an LLM.
 
-
-def _extract_keywords(query: str, max_keywords: int = 1) -> List[str]:
-    """Extract simple keywords from a query string."""
-    words = re.findall(r"\w+", query.lower())
-    keywords = [w for w in words if w not in STOPWORDS]
-    return keywords[:max_keywords]
-
-
-def generate_clarifying_questions(query: str, minimum: int = 3) -> List[str]:
-    """Generate at least ``minimum`` clarifying questions for a query.
-
-    The questions are phrased to draw out the user's intent, constraints,
-    and success criteria. The implementation is deterministic so that tests
-    can reliably assert the output, while still customising each question to
-    the user's request.
+    This function contacts the configured language model (via the OpenAI
+    API) and instructs it to produce at least ``minimum`` clarifying
+    questions. The questions are returned as a list of strings with any
+    empty lines removed. If the model returns fewer than the requested
+    number, the list is padded with generic prompts to satisfy the minimum.
     """
 
-    subject = _extract_keywords(query, 1)
-    topic = subject[0] if subject else "your request"
+    import os
 
-    base_questions = [
-        f"What is your primary goal regarding {topic}?",
-        f"Are there any specific constraints or preferences for {topic}?",
-        "What would a successful outcome look like?",
-        "Is there any existing context or code we should consider?",
+    try:
+        import openai
+    except ImportError as exc:  # pragma: no cover - import guarded for tests
+        raise RuntimeError("openai package is required for question generation") from exc
+
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    prompt = (
+        "Ask at least {n} concise clarifying questions about the following user "
+        "request. Respond with each question on a separate line.\nRequest: {q}".format(
+            n=minimum, q=query
+        )
+    )
+
+    resp = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are Dexter, an AI assistant that clarifies user intent.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.2,
+    )
+
+    text = resp["choices"][0]["message"]["content"]
+    questions = [
+        line.strip("- ")
+        for line in text.splitlines()
+        if line.strip()
     ]
 
-    num_needed = max(minimum, 3)
-    return base_questions[:num_needed]
+    if len(questions) < minimum:
+        questions.extend(["Could you provide more detail?"] * (minimum - len(questions)))
+
+    return questions[:minimum]
+
+

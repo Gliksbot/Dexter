@@ -9,7 +9,15 @@ from backend.collaboration import CollaborationHub
 def setup_app(tmp_path):
     memory = MemoryManager(db_path=str(tmp_path / "memory.db"))
     collaboration = CollaborationHub()
-    autonomy = AutonomyManager(memory=memory, collaboration=collaboration)
+
+    def stub_questions(query: str, minimum: int = 3):
+        return [f"Clarify {i+1} about {query}?" for i in range(minimum)]
+
+    autonomy = AutonomyManager(
+        memory=memory,
+        collaboration=collaboration,
+        question_generator=stub_questions,
+    )
     conversations = ConversationManager(db_path=str(tmp_path / "conversations.sqlite3"))
     main.memory_manager = memory
     main.autonomy_manager = autonomy
@@ -30,8 +38,5 @@ def test_query_endpoint(tmp_path):
     assert resp.status_code == 200
     data = resp.json()
     assert data["response"] == "Received your request: Hello"
-    assert data["clarifications"] == [
-        "What is your primary goal regarding hello?",
-        "Are there any specific constraints or preferences for hello?",
-        "What would a successful outcome look like?",
-    ]
+    assert len(data["clarifications"]) >= 3
+    assert all(isinstance(q, str) and q for q in data["clarifications"])
