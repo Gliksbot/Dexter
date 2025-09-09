@@ -3,11 +3,13 @@ from backend import main
 from backend.memory import MemoryManager
 from backend.autonomy import AutonomyManager
 from backend.conversations import ConversationManager
+from backend.collaboration import CollaborationHub
 
 
 def setup_app(tmp_path):
     memory = MemoryManager(db_path=str(tmp_path / "memory.db"))
-    autonomy = AutonomyManager(memory=memory)
+    collaboration = CollaborationHub()
+    autonomy = AutonomyManager(memory=memory, collaboration=collaboration)
     conversations = ConversationManager(db_path=str(tmp_path / "conversations.sqlite3"))
     main.memory_manager = memory
     main.autonomy_manager = autonomy
@@ -29,6 +31,7 @@ def test_query_endpoint(tmp_path):
     data = resp.json()
     assert data["response"] == "Received your request: Hello"
     assert data["clarifications"] == [
-        "Could you please provide more details about your request?",
-        "What specific format or length do you expect?",
+        "What is your primary goal regarding hello?",
+        "Are there any specific constraints or preferences for hello?",
+        "What would a successful outcome look like?",
     ]
