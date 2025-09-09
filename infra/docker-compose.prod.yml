@@ -1,0 +1,26 @@
+version: "3.9"
+name: dexter-prod
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api.prod
+    environment:
+      - DEXTER_DB_PATH=/data/dexter_memory.db
+    volumes:
+      - dexter_data:/data
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.frontend.prod
+    depends_on:
+      - api
+    restart: unless-stopped
+    ports:
+      - "80:80"
+
+volumes:
+  dexter_data:

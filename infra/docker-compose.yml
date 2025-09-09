@@ -1,0 +1,48 @@
+version: "3.9"
+name: dexter
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEXTER_DB_PATH=/data/dexter_memory.db
+    volumes:
+      - ..:/workspace
+      - dexter_data:/data
+    working_dir: /workspace
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.frontend
+    command: npm run dev -- --host --port 5173
+    ports:
+      - "${WEB_PORT:-5173}:5173"
+    environment:
+      - VITE_API_URL=http://localhost:${API_PORT:-8000}
+    volumes:
+      - ..:/workspace
+    working_dir: /workspace/frontend
+    depends_on:
+      - api
+
+  neo4j:
+    image: neo4j:5
+    profiles: ["graph"]
+    environment:
+      - NEO4J_AUTH=neo4j/testpass
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+
+volumes:
+  dexter_data:
+  neo4j_data:
