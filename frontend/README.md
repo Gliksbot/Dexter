@@ -10,3 +10,14 @@ Key planned features:
 - **Speech support**: Optional text‑to‑speech and speech‑to‑text capabilities for hands‑free interaction.
 
 This is a placeholder file outlining the intended direction for the Dexter frontend. Implementation details will be added as development progresses.
+
+## Getting Started
+
+Install dependencies and start the development server:
+
+```bash
+npm install
+npm run dev
+```
+
+The frontend expects a backend URL defined in the `VITE_API_BASE_URL` environment variable (default: `http://localhost:8000`).
