@@ -14,8 +14,9 @@ This repository is under active development. See `IMPROVEMENT_PLAN.md` for high-
 ### Advanced collaboration
 
 The backend now includes a lightweight ``CollaborationHub`` which broadcasts
-user queries, Dexter's clarifying questions, and responses to any number of
-listeners. This enables real-time cooperation between Dexter and supporting
-teammates or tools. Clarifying questions are generated dynamically to surface
-intent, constraints, and success criteria, giving collaborators the context and
-time they need to craft high-quality solutions.
+user queries, Dexter's clarifying questions, answers, and responses to any
+number of listeners. This enables real-time cooperation between Dexter and
+supporting teammates or tools. Clarifying questions are generated using
+Dexter's own heuristics—no external LLM calls are required. Once the user has
+answered the questions a ``clarifications_complete`` event notifies
+collaborators to begin proposing and voting on solutions.

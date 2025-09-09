@@ -6,4 +6,3 @@ click
 
 pytest
 httpx
-openai
