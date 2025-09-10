@@ -1,0 +1,76 @@
+{
+  "system": {
+    "name": "Dexter Simple v2",
+    "version": "2.0.0",
+    "server_mode": true,
+    "debug": true
+  },
+  "llms": {
+    "dexter": {
+      "name": "Dexter",
+      "role": "primary_orchestrator",
+      "enabled": true,
+      "provider": "ollama",
+      "endpoint": "http://localhost:11434",
+      "model": "huihui_ai/qwen3-abliterated:32b",
+      "api_key_env": null,
+      "identity": "You are Dexter, Jeffrey's personal AI assistant. You can read files, execute code, and build skills. You have access to the local file system through your Agent API.",
+      "personality": "Professional, helpful, and proactive. You take initiative and build capabilities.",
+      "params": {
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "top_p": 0.9
+      }
+    },
+    "partner": {
+      "name": "Partner", 
+      "role": "background_collaborator",
+      "enabled": true,
+      "provider": "ollama",
+      "endpoint": "http://localhost:11434",
+      "model": "qwen2.5-coder:32b",
+      "api_key_env": null,
+      "identity": "You are Partner, working with Dexter in the background. You analyze conversations and provide suggestions. You work silently unless directly addressed.",
+      "personality": "Analytical, thorough, and supportive. You enhance Dexter's capabilities.",
+      "params": {
+        "temperature": 0.3,
+        "max_tokens": 1024,
+        "top_p": 0.8
+      }
+    }
+  },
+  "brain": {
+    "memory": {
+      "short_term": {
+        "enabled": true,
+        "max_items": 1000,
+        "storage": "ram"
+      },
+      "long_term": {
+        "enabled": true,
+        "storage": "sqlite",
+        "database_path": "./data/brain.db"
+      }
+    }
+  },
+  "skills": {
+    "enabled": true,
+    "storage_path": "./skills",
+    "database_path": "./data/skills.db",
+    "auto_promote": false,
+    "test_timeout": 30
+  },
+  "agent_api": {
+    "enabled": true,
+    "endpoint": "http://localhost:5001",
+    "api_key": "dexter-local-agent-key-2025"
+  },
+  "interface": {
+    "type": "tkinter",
+    "voice": {"enabled": false}
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "./logs/dexter.log"
+  }
+}

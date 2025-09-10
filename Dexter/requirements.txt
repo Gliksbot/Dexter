@@ -1,0 +1,11 @@
+# Dexter Simple v2 Requirements
+# Core dependencies  
+aiohttp>=3.8.0
+numpy>=1.21.0
+
+# Voice dependencies (optional)
+SpeechRecognition>=3.10.0
+pyttsx3>=2.90
+
+# For embedding models (optional - if you want semantic search)
+sentence-transformers>=2.2.0
